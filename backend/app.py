@@ -11,7 +11,7 @@ import re
 import dateparser
 import dateparser.search
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -116,6 +116,8 @@ def handle_command(command):
         return handle_news()
     elif "chat" in command or "talk" in command or "ai" in command:
         return handle_chatgpt(command)
+    elif "play" in command or "pause" in command or "stop" in command or "next" in command or "previous" in command or "skip" in command:
+        return handle_music(command)
     else:
         return "Sorry, I don't understand that."
 
@@ -214,11 +216,43 @@ def handle_screenshot():
     return f"Screenshot saved to Desktop as screenshot_{timestamp}.png"
 
 def handle_time_date(command):
-    if "time" in command:
-        return f"The time is {datetime.now().strftime('%I:%M %p')}"
-    elif "date" in command:
-        return f"Today is {datetime.now().strftime('%A, %B %d, %Y')}"
-    return "Time or date not recognized"
+    try:
+        # Current local time if no location is specified
+        if "time" in command and "in" not in command:
+            return f"The current local time is {datetime.now().strftime('%I:%M %p')}"
+
+        # Check for location in the command (e.g., "time in London")
+        location_match = re.search(r"time in (.+)", command, re.IGNORECASE)
+        if location_match:
+            city_name = location_match.group(1).strip()
+            # Use OpenWeatherMap API to get timezone data
+            url = f"https://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={OPENWEATHER_API_KEY}"
+            try:
+                res = requests.get(url)
+                print(f"Time API response for {city_name}: {res.status_code} - {res.text}")
+                data = res.json()
+                if data.get("cod") != 200:
+                    return f"Error fetching time for {city_name}: {data.get('message', 'unknown error')}"
+                
+                # Get timezone offset in seconds
+                timezone_offset = data["timezone"]  # Offset in seconds from UTC
+                utc_time = datetime.now(pytz.UTC)
+                # Calculate local time for the city
+                local_time = utc_time + timedelta(seconds=timezone_offset)
+                return f"The current time in {city_name} is {local_time.strftime('%I:%M %p')}"
+
+            except Exception as e:
+                print(f"Time API error for {city_name}: {e}")
+                return f"Couldn't fetch time for {city_name}."
+        
+        elif "date" in command:
+            return f"Today is {datetime.now().strftime('%A, %B %d, %Y')}"
+        
+        return "Time or date command not recognized"
+    
+    except Exception as e:
+        print(f"Error in handle_time_date: {e}")
+        return "Sorry, something went wrong while fetching the time."
 
 def handle_weather(command):
     import re
@@ -379,7 +413,14 @@ def handle_reminder(command):
     
     
 def handle_joke():
-    return "Why do programmers prefer dark mode? Because light attracts bugs!"
+    try:
+        res = requests.get("https://official-joke-api.appspot.com/random_joke")
+        joke = res.json()
+        return f"{joke['setup']} ... {joke['punchline']}"
+    except Exception as e:
+        print("Joke fetch error:", e)
+        return "Sorry, I couldn't fetch a joke."
+
 
 def handle_news():
     try:
@@ -396,8 +437,63 @@ def handle_news():
         print("News API error:", e)
         return "Couldn't fetch news."
 
+def handle_music(command):
+    command = command.lower()
+
+    try:
+        if "play" in command:
+            # Extract what to play (optional)
+            play_match = re.search(r"play (.+)", command)
+            if play_match:
+                query = play_match.group(1).strip()
+                if query in ["music", ""]:
+                    # Resume playing current Spotify playback
+                    applescript = 'tell application "Spotify" to play'
+                    subprocess.run(["osascript", "-e", applescript])
+                    return "Resuming Spotify playback."
+                else:
+                    # Try searching and playing the query on Spotify
+                    # Spotify AppleScript supports searching via 'search' command
+                    applescript = f'''
+                    tell application "Spotify"
+                        set results to search "{query}"
+                        if results is not {{}} then
+                            play track item 1 of results
+                            return "Playing {query} on Spotify."
+                        else
+                            return "Could not find {query} on Spotify."
+                        end if
+                    end tell
+                    '''
+                    result = subprocess.run(["osascript", "-e", applescript], capture_output=True, text=True)
+                    return result.stdout.strip()
+            else:
+                applescript = 'tell application "Spotify" to play'
+                subprocess.run(["osascript", "-e", applescript])
+                return "Playing Spotify."
+
+        elif "pause" in command or "stop" in command:
+            applescript = 'tell application "Spotify" to pause'
+            subprocess.run(["osascript", "-e", applescript])
+            return "Spotify playback paused."
+
+        elif "next" in command or "skip" in command:
+            applescript = 'tell application "Spotify" to next track'
+            subprocess.run(["osascript", "-e", applescript])
+            return "Skipping to next track on Spotify."
+
+        elif "previous" in command or "back" in command:
+            applescript = 'tell application "Spotify" to previous track'
+            subprocess.run(["osascript", "-e", applescript])
+            return "Going back to previous track on Spotify."
+
+        else:
+            return "Spotify music command not recognized."
+
+    except Exception as e:
+        print("Spotify music command error:", e)
+        return "Failed to control Spotify."
+    
+    
 if __name__ == "__main__":
-    command = "remind me to walk at 10:00 p.m. on July 29, 2025"
-    response = handle_reminder(command)
-    print(response)
     app.run(debug=True)
