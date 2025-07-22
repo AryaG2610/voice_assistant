@@ -168,7 +168,7 @@ def handle_app_launch(command):
             "url": "https://www.google.com"
         },
         "chat gpt": {
-            "app_name": ChatGPT,
+            "app_name": "ChatGPT",
             "url": "https://chat.openai.com"
         },
         "calendar": {
