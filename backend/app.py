@@ -184,12 +184,12 @@ def handle_app_launch(command):
 
 
 def handle_volume(command):
-    if "mute" in command:
-        os.system("osascript -e 'set volume output muted true'")
-        return "Volume muted"
-    elif "unmute" in command:
-        os.system("osascript -e 'set volume output muted false'")
+    if "unmute" in command:
+        os.system("osascript -e 'set volume output muted false' -e 'set volume output volume 50'")
         return "Volume unmuted"
+    elif "mute" in command:
+        os.system("osascript -e 'set volume output muted true'")
+        return "Volume muted" 
     elif "increase" in command:
         os.system("osascript -e 'set volume output volume ((output volume of (get volume settings)) + 10)'")
         return "Increasing volume"
