@@ -26,13 +26,10 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:3001"}})
 recognizer = sr.Recognizer()
 engine = pyttsx3.init()
 
-# Voice feedback toggle
+# voice feedback toggle
 voice_enabled = True
 
-# For memory
-memory = {}
-
-# For managing speech threads and safe stopping
+# managing speech threads and safe stopping
 speak_lock = threading.Lock()
 speaking_thread = None
 
@@ -45,10 +42,8 @@ def speak(text):
 
     if voice_enabled:
         with speak_lock:
-            # Stop any ongoing speech immediately
             engine.stop()
 
-        # If previous speech thread is still running, we just start a new one
         speaking_thread = threading.Thread(target=run_speech)
         speaking_thread.start()
 
@@ -56,7 +51,7 @@ def speak(text):
 def listen():
     try:
         with speak_lock:
-            engine.stop()  # Stop current speech if any
+            engine.stop()  
 
         with sr.Microphone() as source:
             print("Listening (from API)...")
@@ -96,8 +91,6 @@ def handle_command(command):
         return handle_app_launch(command)
     elif "volume" in command or "mute" in command:
         return handle_volume(command)
-    elif "screenshot" in command:
-        return handle_screenshot()
     elif "time" in command or "date" in command:
         return handle_time_date(command)
     elif "weather" in command:
@@ -106,8 +99,6 @@ def handle_command(command):
         return handle_math(command)
     elif "who is" in command or "what is" in command:
         return handle_wikipedia(command)
-    elif "remember" in command or "what's my" in command:
-        return handle_memory(command)
     elif "remind me" in command:
         return handle_reminder(command)
     elif "joke" in command:
@@ -163,11 +154,11 @@ def handle_app_launch(command):
         },
         "messages": {
             "app_name": "Messages",
-            "url": None  # No browser fallback
+            "url": None  
         },
         "facetime": {
             "app_name": "FaceTime",
-            "url": None  # No browser fallback
+            "url": None 
         }
     }
 
@@ -176,15 +167,13 @@ def handle_app_launch(command):
             app_name = value["app_name"]
             url = value["url"]
 
-            # Try launching desktop app
             if app_name:
                 try:
                     subprocess.Popen(["open", "-a", app_name])
                     return f"Opening {key.title()}"
                 except Exception:
-                    pass  # Fallback if available
-
-            # Open URL if defined
+                    pass 
+                
             if url:
                 webbrowser.open(url)
                 return f"Opening {key.title()} in browser"
@@ -209,23 +198,14 @@ def handle_volume(command):
         return "Decreasing volume"
     return "Volume command not recognized"
 
-def handle_screenshot():
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = f"{os.path.expanduser('~')}/Desktop/screenshot_{timestamp}.png"
-    os.system(f"screencapture {path}")
-    return f"Screenshot saved to Desktop as screenshot_{timestamp}.png"
-
 def handle_time_date(command):
     try:
-        # Current local time if no location is specified
         if "time" in command and "in" not in command:
             return f"The current local time is {datetime.now().strftime('%I:%M %p')}"
 
-        # Check for location in the command (e.g., "time in London")
         location_match = re.search(r"time in (.+)", command, re.IGNORECASE)
         if location_match:
             city_name = location_match.group(1).strip()
-            # Use OpenWeatherMap API to get timezone data
             url = f"https://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={OPENWEATHER_API_KEY}"
             try:
                 res = requests.get(url)
@@ -234,10 +214,9 @@ def handle_time_date(command):
                 if data.get("cod") != 200:
                     return f"Error fetching time for {city_name}: {data.get('message', 'unknown error')}"
                 
-                # Get timezone offset in seconds
-                timezone_offset = data["timezone"]  # Offset in seconds from UTC
+                timezone_offset = data["timezone"]  
                 utc_time = datetime.now(pytz.UTC)
-                # Calculate local time for the city
+                
                 local_time = utc_time + timedelta(seconds=timezone_offset)
                 return f"The current time in {city_name} is {local_time.strftime('%I:%M %p')}"
 
@@ -286,13 +265,9 @@ def handle_wikipedia(command):
 
 def handle_math(command):
     try:
-        # Remove common leading phrases from the command
         expression = command.lower()
         expression = re.sub(r"(calculate|what is|solve|evaluate|convert|please|the|answer to)", "", expression)
-
-        # Now expression should be just the math expression, like "2 + 2"
-
-        # Remove any unwanted characters (keep digits, operators, parentheses, spaces)
+        
         expression = re.sub(r"[^0-9\.\+\-\*\/\%\(\)\s]+", "", expression).strip()
 
         if not expression:
@@ -300,7 +275,6 @@ def handle_math(command):
 
         print(f"Math expression to evaluate: '{expression}'")
 
-        # Evaluate the math expression safely
         result = eval(expression)
 
         return f"The result is {result}"
@@ -322,18 +296,6 @@ def handle_chatgpt(command):
         print("ChatGPT error:", e)
         return "Failed to contact ChatGPT."
 
-def handle_memory(command):
-    if "remember" in command:
-        key = command.replace("remember", "").strip().split(" is ")
-        if len(key) == 2:
-            memory[key[0].strip()] = key[1].strip()
-            return f"Okay, I’ll remember that {key[0].strip()} is {key[1].strip()}"
-    else:
-        for k in memory:
-            if k in command:
-                return f"Your {k} is {memory[k]}"
-    return "Sorry, couldn't store or retrieve memory."
-
 def handle_reminder(command):
     try:
         task_match = re.search(r"remind me to (.+)", command, re.IGNORECASE)
@@ -343,10 +305,8 @@ def handle_reminder(command):
         reminder_text = task_match.group(1).strip()
         reminder_text = reminder_text.replace("p.m.", "PM").replace("a.m.", "AM")
 
-        # Define CDT timezone
         cdt_tz = pytz.timezone('America/Chicago')
 
-        # Parse the date
         search_result = dateparser.search.search_dates(
             reminder_text,
             settings={
@@ -376,7 +336,7 @@ def handle_reminder(command):
         now = datetime.now(cdt_tz)
         if reminder_time and reminder_time > now:
             year = reminder_time.year
-            month = reminder_time.strftime("%B")  # AppleScript needs month as full name
+            month = reminder_time.strftime("%B")  
             day = reminder_time.day
             hour = reminder_time.hour
             minute = reminder_time.minute
@@ -442,18 +402,14 @@ def handle_music(command):
 
     try:
         if "play" in command:
-            # Extract what to play (optional)
             play_match = re.search(r"play (.+)", command)
             if play_match:
                 query = play_match.group(1).strip()
                 if query in ["music", ""]:
-                    # Resume playing current Spotify playback
                     applescript = 'tell application "Spotify" to play'
                     subprocess.run(["osascript", "-e", applescript])
                     return "Resuming Spotify playback."
                 else:
-                    # Try searching and playing the query on Spotify
-                    # Spotify AppleScript supports searching via 'search' command
                     applescript = f'''
                     tell application "Spotify"
                         set results to search "{query}"
