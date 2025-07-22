@@ -15,10 +15,10 @@ from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-# Optional: Load these from environment variables or config file
-OPENWEATHER_API_KEY = "62c0fb19fb4d603d082a334989c5edc3"
-OPENAI_API_KEY = "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"
-openai.api_key = OPENAI_API_KEY
+# apis
+OPENWEATHER_API_KEY = "API_KEY_HERE"
+# OPENAI_API_KEY = "API_KEY_HERE"
+# openai.api_key = OPENAI_API_KEY
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3001"}})
@@ -166,6 +166,18 @@ def handle_app_launch(command):
         "google": {
             "app_name": None,
             "url": "https://www.google.com"
+        },
+        "chat gpt": {
+            "app_name": ChatGPT,
+            "url": "https://chat.openai.com"
+        },
+        "calendar": {
+            "app_name": "Calendar",
+            "url": None  
+        },
+        "notes": {
+            "app_name": "Notes",
+            "url": None  
         }
     }
 
