@@ -28,11 +28,126 @@
   color: #61dafb;
 }
 
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #121212;
+  margin: 0;
+}
+
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Center everything */
+.voiceasst {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(to top right, #0f0f0f, #1c1c1c);
+  color: white;
+  font-family: 'Inter', sans-serif;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Main container */
+.va-container {
+  max-width: 600px;
+  width: 100%;
+  background: #1e1e1e;
+  padding: 3rem 2rem;
+  border-radius: 2rem;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+}
+
+/* Title */
+.va-title {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 2rem;
+}
+
+/* Button */
+.va-button {
+  width: 150px;
+  height: 150px;
+  font-size: 4rem;
+  background: linear-gradient(to right, #2563eb, #3b82f6);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  margin: 1rem auto;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.3s;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+}
+.va-button:hover {
+  background: linear-gradient(to right, #3b82f6, #60a5fa);
+  transform: scale(1.05);
+}
+.va-button:active {
+  transform: scale(0.95);
+}
+
+/* Status display */
+.va-status {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+
+/* Status styles */
+.pulse {
+  color: #3b82f6;
+  animation: pulse 1s infinite;
+}
+.idle-text {
+  color: #9ca3af;
+}
+.error-text {
+  color: #ef4444;
+}
+
+/* Text box */
+.va-box {
+  background: #2a2a2a;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+}
+.va-label {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+.va-content {
+  font-size: 1.5rem;
+  font-weight: 500;
+  word-break: break-word;
+  min-height: 2.5rem;
+}
+
+/* Pulse animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }

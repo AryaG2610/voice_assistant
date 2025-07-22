@@ -1,5 +1,5 @@
-// src/VoiceAssistant.jsx
 import React, { useState } from "react";
+import "./App.css"; // Make sure this is imported
 
 export default function VoiceAssistant() {
   const [command, setCommand] = useState("");
@@ -7,32 +7,52 @@ export default function VoiceAssistant() {
   const [status, setStatus] = useState("Idle");
 
   const handleListen = async () => {
-    setStatus("Listening...");
+    setStatus("Listening");
+    setCommand("");
+    setResponse("");
     try {
       const res = await fetch("http://127.0.0.1:5000/listen");
       const data = await res.json();
-      setCommand(data.command);
-      setResponse(data.response);
+      setCommand(data.command || "No command recognized");
+      setResponse(data.response || "No response");
       setStatus("Idle");
     } catch (err) {
-        console.error(err);
-        setResponse("Error contacting backend.");
-        setStatus("Error");
+      console.error(err);
+      setResponse("Error contacting backend.");
+      setStatus("Error");
     }
   };
 
+  const statusText =
+    status === "Listening" ? (
+      <span className="pulse">🎧 Listening...</span>
+    ) : status === "Error" ? (
+      <span className="error-text">⚠️ Error</span>
+    ) : (
+      <span className="idle-text">⏸️ Idle</span>
+    );
+
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 border shadow rounded space-y-4">
-      <h1 className="text-2xl font-bold">🎙️ Voice Assistant</h1>
-      <button
-        onClick={handleListen}
-        className="bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Start Listening
-      </button>
-      <p><strong>Status:</strong> {status}</p>
-      <p><strong>Command:</strong> {command}</p>
-      <p><strong>Response:</strong> {response}</p>
+    <div className="voiceasst">
+      <div className="va-container">
+        <h1 className="va-title">🎙️ Voice Assistant</h1>
+
+        <button className="va-button" onClick={handleListen}>
+          🎤
+        </button>
+
+        <div className="va-status">{statusText}</div>
+
+        <div className="va-box">
+          <p className="va-label">You said:</p>
+          <p className="va-content">{command || "—"}</p>
+        </div>
+
+        <div className="va-box">
+          <p className="va-label">Assistant Response:</p>
+          <p className="va-content">{response || "—"}</p>
+        </div>
+      </div>
     </div>
   );
 }
