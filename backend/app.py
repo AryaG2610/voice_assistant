@@ -10,6 +10,7 @@ import threading
 import re
 import dateparser
 import dateparser.search
+import pytz
 from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -301,46 +302,86 @@ def handle_memory(command):
 
 def handle_reminder(command):
     try:
-        task_match = re.search(r"remind me to (.+)", command)
+        task_match = re.search(r"remind me to (.+)", command, re.IGNORECASE)
         if not task_match:
             return "Sorry, I couldn't understand the reminder task."
 
         reminder_text = task_match.group(1).strip()
-        search_result = dateparser.search.search_dates(reminder_text, settings={'PREFER_DATES_FROM': 'future'})
+
+        # Preprocess the time string to help dateparser
+        reminder_text = reminder_text.replace("p.m.", "PM").replace("a.m.", "AM")
+
+        # Define CDT timezone
+        cdt_tz = pytz.timezone('America/Chicago')
+
+        # Search for dates with explicit timezone and strict parsing
+        search_result = dateparser.search.search_dates(
+            reminder_text,
+            settings={
+                'PREFER_DATES_FROM': 'future',
+                'TIMEZONE': 'America/Chicago',
+                'TO_TIMEZONE': 'America/Chicago',
+                'STRICT_PARSING': True,
+                'RELATIVE_BASE': datetime.now(cdt_tz)
+            }
+        )
 
         reminder_time = None
         task_clean = reminder_text
 
         if search_result:
+            # Use the last result (intended time) if it’s in the future, otherwise use the first
             first_date_text, first_date_obj = search_result[0]
+            if len(search_result) > 1 and search_result[-1][1] > datetime.now(cdt_tz):
+                first_date_text, first_date_obj = search_result[-1]
             reminder_time = first_date_obj
-            
-            task_clean = reminder_text.replace(first_date_text, "").strip(" ,.-")
 
-        if reminder_time and reminder_time > datetime.now():
-            apple_date_str = reminder_time.strftime('%A, %B %d, %Y at %I:%M:%S %p')
+            # Remove the date/time phrase and prepositions
+            pattern = r"\b(?:at|on|by|around|about)?\s*" + re.escape(first_date_text) + r"\b"
+            task_clean = re.sub(pattern, "", reminder_text, flags=re.IGNORECASE).strip(" ,.-")
+            # Additional cleanup for time and "tomorrow"
+            task_clean = re.sub(r"\bat\s+\d{1,2}:\d{2}\s*(?:PM|AM)\b|\btomorrow\b", "", task_clean, flags=re.IGNORECASE).strip(" ,.-")
+
+        # Debug: Print search result and parsed time
+        print(f"Search result: {search_result}")
+        print(f"Parsed reminder time: {reminder_time}")
+
+        # Localize reminder_time to CDT if not already
+        if reminder_time and not reminder_time.tzinfo:
+            reminder_time = cdt_tz.localize(reminder_time)
+
+        if reminder_time and reminder_time > datetime.now(cdt_tz):
+            # Format AppleScript date string with explicit time
+            apple_date_str = reminder_time.strftime('%m/%d/%Y %H:%M:%S')
+            print(f"AppleScript date string: {apple_date_str}")
 
             applescript = f'''
+            set theDate to date "{apple_date_str}"
             tell application "Reminders"
-                set newReminder to make new reminder with properties {{name:"{task_clean}"}}
-                set due date of newReminder to date "{apple_date_str}"
+                tell list "Reminders"
+                    set newReminder to make new reminder with properties {{name:"{task_clean}", due date:theDate}}
+                end tell
             end tell
             '''
+            print(f"Executing AppleScript:\n{applescript}")
             subprocess.run(["osascript", "-e", applescript])
             return f"Reminder set: '{task_clean}' at {reminder_time.strftime('%I:%M %p on %b %d')}"
         else:
             applescript = f'''
             tell application "Reminders"
-                make new reminder with properties {{name:"{task_clean}"}}
+                tell list "Reminders"
+                    make new reminder with properties {{name:"{task_clean}"}}
+                end tell
             end tell
             '''
+            print(f"Executing AppleScript (no time):\n{applescript}")
             subprocess.run(["osascript", "-e", applescript])
             return f"Reminder set: '{task_clean}' without a specific time"
     except Exception as e:
-        print("Reminder error:", e)
+        print(f"Reminder error: {e}")
         return "Sorry, couldn't set the reminder."
 
-
+    
 def handle_joke():
     return "Why do programmers prefer dark mode? Because light attracts bugs!"
 
@@ -360,4 +401,7 @@ def handle_news():
         return "Couldn't fetch news."
 
 if __name__ == "__main__":
+    command = "remind me to walk at 10:00 p.m. on July 28, 2025"
+    response = handle_reminder(command)
+    print(response)
     app.run(debug=True)
