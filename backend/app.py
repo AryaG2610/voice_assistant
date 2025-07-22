@@ -87,6 +87,8 @@ def handle_command(command):
     elif "turn on voice" in command or "unmute voice" in command:
         voice_enabled = True
         return "Voice feedback enabled"
+    elif "how" in command or "search" in command:
+        return handle_google_search(command)
     elif "open" in command:
         return handle_app_launch(command)
     elif "volume" in command or "mute" in command:
@@ -109,6 +111,7 @@ def handle_command(command):
         return handle_chatgpt(command)
     elif "play" in command or "pause" in command or "stop" in command or "next" in command or "previous" in command or "skip" in command:
         return handle_music(command)
+    
     else:
         return "Sorry, I don't understand that."
 
@@ -159,6 +162,10 @@ def handle_app_launch(command):
         "facetime": {
             "app_name": "FaceTime",
             "url": None 
+        },
+        "google": {
+            "app_name": None,
+            "url": "https://www.google.com"
         }
     }
 
@@ -182,6 +189,20 @@ def handle_app_launch(command):
 
     return "App not recognized"
 
+def handle_google_search(command):
+    print(f"Handling Google search command: '{command}'")
+    try:
+        query = re.sub(r"\b(how|search)\b", "", command, flags=re.IGNORECASE)
+        query = re.sub(r"\b(for|to|about|in|on|at)\b", "", query, flags=re.IGNORECASE).strip()
+        if query:
+            search_url = f"https://www.google.com/search?q={requests.utils.quote(query)}"
+            print(f"Opening search URL: {search_url}")
+            webbrowser.open(search_url)
+            return f"Searching Google for: {query}"
+        return "Please provide a query after 'how' or 'search' to search on Google"
+    except Exception as e:
+        print(f"Google search error: {e}")
+        return "Failed to perform Google search."
 
 def handle_volume(command):
     if "unmute" in command:
