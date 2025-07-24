@@ -111,7 +111,8 @@ def handle_command(command):
         return handle_chatgpt(command)
     elif "play" in command or "pause" in command or "stop" in command or "next" in command or "previous" in command or "skip" in command:
         return handle_music(command)
-    
+    elif "send text to" in command and "that" in command:
+        return handle_text_message(command)
     else:
         return "Sorry, I don't understand that."
 
@@ -482,7 +483,90 @@ def handle_music(command):
     except Exception as e:
         print("Spotify music command error:", e)
         return "Failed to control Spotify."
+
+# ------------------ iMessage Utilities ------------------
+
+def get_contact_handles(contact_name):
+    try:
+        apple_script = f'''
+        set contactName to "{contact_name}"
+        tell application "Contacts"
+            set theContacts to every person whose name is contactName
+            if theContacts is not {{}} then
+                set handleList to {{}}
+                repeat with c in theContacts
+                    repeat with p in phones of c
+                        set end of handleList to value of p
+                    end repeat
+                    repeat with e in emails of c
+                        set end of handleList to value of e
+                    end repeat
+                end repeat
+                return handleList
+            else
+                return {{}}
+            end if
+        end tell
+        '''
+        process = subprocess.Popen(['osascript', '-'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = process.communicate(apple_script)
+        if process.returncode != 0:
+            print("AppleScript error:", stderr)
+            return []
+        handles = stdout.strip().split(", ")
+        return handles if handles != [""] else []
+    except Exception as e:
+        print("get_contact_handles error:", e)
+        return []
+
+def send_imessage(handle, message):
+    # Sends an iMessage via AppleScript
+    try:
+        apple_script = f'''
+        on run {{}}
+            tell application "Messages"
+                set targetService to 1st service whose service type = iMessage
+                set targetBuddy to buddy "{handle}" of targetService
+                send "{message}" to targetBuddy
+            end tell
+        end run
+        '''
+        process = subprocess.Popen(['osascript', '-'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = process.communicate(apple_script)
+        if process.returncode != 0:
+            print("send_imessage AppleScript error:", stderr)
+            return False
+        return True
+    except Exception as e:
+        print("send_imessage error:", e)
+        return False
+
+# -------------- New function you needed ----------------
+
+def handle_text_message(command):
+    # Expected command: "send text to [contact_name] that [message]"
+    try:
+        match = re.search(r"send text to (.+?) that (.+)", command, re.IGNORECASE)
+        if not match:
+            return "Please say: send text to [contact name] that [message]."
+
+        contact_name = match.group(1).strip()
+        message = match.group(2).strip()
+
+        handles = get_contact_handles(contact_name)
+        if not handles:
+            return f"Couldn't find contact '{contact_name}'."
+
+        success = send_imessage(handles[0], message)
+        if success:
+            return f"Message sent to {contact_name}."
+        else:
+            return "Failed to send the message."
+
+    except Exception as e:
+        print("handle_text_message error:", e)
+        return "Sorry, there was an error sending the message."
     
     
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
