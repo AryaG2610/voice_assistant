@@ -1,0 +1,11 @@
+Flask
+Flask-Cors
+SpeechRecognition
+pyttsx3
+wikipedia
+requests
+openai
+python-dateparser
+pytz
+fuzzywuzzy
+python-Levenshtein  
