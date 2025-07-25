@@ -41,8 +41,8 @@
 ### 1. Clone the Repo
 
 ```bash
-git clone https://github.com/yourusername/nova-voice-assistant.git
-cd nova-voice-assistant
+git clone https://github.com/yourusername/voice_assistant.git
+cd voice_assistant
 ```
 
 ### 2. Backend
