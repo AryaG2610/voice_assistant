@@ -7,7 +7,7 @@ export default function VoiceAssistant() {
   const [status, setStatus] = useState("Idle");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
 
-  // Load from localStorage and backend on mount
+  // Load voice toggle status from localStorage and backend
   useEffect(() => {
     const saved = localStorage.getItem("voiceEnabled");
     if (saved !== null) {
@@ -26,7 +26,25 @@ export default function VoiceAssistant() {
         })
         .catch(err => console.error("Failed to get voice status", err));
     }
+
+    // 🔁 Poll for backend wake-word events
+    const interval = setInterval(checkNovaResponse, 2000);
+    return () => clearInterval(interval);
   }, []);
+
+  const checkNovaResponse = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:5000/get-latest-response");
+      const data = await res.json();
+      if (data && data.command) {
+        setCommand(data.command);
+        setResponse(data.response || "—");
+        setStatus("Idle");
+      }
+    } catch (err) {
+      console.error("Wake word poll error:", err);
+    }
+  };
 
   const handleListen = async () => {
     setStatus("Listening");

@@ -11,6 +11,7 @@ import re
 import dateparser
 import dateparser.search
 import pytz
+from wake_word_listener import start_wake_word_thread
 from fuzzywuzzy import fuzz, process
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
@@ -65,6 +66,36 @@ def listen():
     except Exception as e:
         print("Error:", str(e))
         return jsonify({"command": "", "response": "Failed to listen or recognize."})
+
+# Global state to hold last voice response
+latest_result = {"command": None, "response": None}
+
+@app.route("/listenNova", methods=["POST"])
+def listenNova():
+    global latest_result
+    try:
+        with sr.Microphone() as source:
+            print("🎙 Listening for command...")
+            audio = recognizer.listen(source, timeout=5)
+
+        command = recognizer.recognize_google(audio)
+        print(f"🧠 You said: {command}")
+        engine.say(f"You said: {command}")
+        engine.runAndWait()
+
+        response = handle_command(command)
+        latest_result = {"command": command, "response": response}
+
+        return jsonify({"status": "success", "command": command, "response": response})
+
+    except Exception as e:
+        print("❌ Error:", str(e))
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/get-latest-response")
+def get_latest_response():
+    return jsonify(latest_result)
+    
 
 @app.route("/toggle-voice", methods=["POST"])
 def toggle_voice():
@@ -733,4 +764,5 @@ def handle_group_text_message(command):
 if __name__ == '__main__':
     # command2 = "send text to OG unks group that hello ouncs"
     # print(handle_group_text_message(command2))
+    start_wake_word_thread()
     app.run(debug=True)

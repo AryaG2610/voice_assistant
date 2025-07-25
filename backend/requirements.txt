@@ -9,3 +9,5 @@ python-dateparser
 pytz
 fuzzywuzzy
 python-Levenshtein  
+pvporcupine
+sounddevice
