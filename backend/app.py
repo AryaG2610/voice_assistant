@@ -21,7 +21,7 @@ OPENWEATHER_API_KEY = "API_KEY_HERE"
 # openai.api_key = OPENAI_API_KEY
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:3001"}})
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 recognizer = sr.Recognizer()
 engine = pyttsx3.init()
@@ -488,36 +488,71 @@ def handle_music(command):
 
 def get_contact_handles(contact_name):
     try:
+        contact_name_lower = contact_name.lower()
+
         apple_script = f'''
-        set contactName to "{contact_name}"
+        set contactName to "{contact_name_lower}"
+
         tell application "Contacts"
-            set theContacts to every person whose name is contactName
+            set theContacts to {{}}
+            repeat with p in people
+                try
+                    set personName to name of p
+                    if personName is not missing value then
+                        set lowerName to (do shell script "echo " & quoted form of personName & " | tr '[:upper:]' '[:lower:]'")
+                        if lowerName contains contactName then
+                            set end of theContacts to p
+                        end if
+                    end if
+                end try
+            end repeat
+
             if theContacts is not {{}} then
                 set handleList to {{}}
                 repeat with c in theContacts
-                    repeat with p in phones of c
-                        set end of handleList to value of p
+                    repeat with ph in phones of c
+                        set end of handleList to value of ph
                     end repeat
-                    repeat with e in emails of c
-                        set end of handleList to value of e
+                    repeat with em in emails of c
+                        set end of handleList to value of em
                     end repeat
                 end repeat
-                return handleList
+                if handleList is not {{}} then
+                    return handleList
+                else
+                    return "NO_HANDLES"
+                end if
             else
-                return {{}}
+                return "NOT_FOUND"
             end if
         end tell
         '''
-        process = subprocess.Popen(['osascript', '-'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        process = subprocess.Popen(
+            ['osascript', '-'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
         stdout, stderr = process.communicate(apple_script)
-        if process.returncode != 0:
-            print("AppleScript error:", stderr)
+
+        print("AppleScript output:", stdout.strip())
+        if stderr.strip():
+            print("AppleScript error:", stderr.strip())
+
+        if process.returncode != 0 or "NOT_FOUND" in stdout:
             return []
-        handles = stdout.strip().split(", ")
-        return handles if handles != [""] else []
+        if "NO_HANDLES" in stdout:
+            return []
+
+        handles = [h.strip() for h in stdout.strip().split(",") if h.strip()]
+        return handles
+
     except Exception as e:
         print("get_contact_handles error:", e)
         return []
+
 
 def send_imessage(handle, message):
     # Sends an iMessage via AppleScript
