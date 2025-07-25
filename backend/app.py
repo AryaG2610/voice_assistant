@@ -11,6 +11,7 @@ import re
 import dateparser
 import dateparser.search
 import pytz
+from fuzzywuzzy import fuzz, process
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -579,11 +580,56 @@ def send_imessage(handle, message):
         return False
 
 def send_group_imessage(group_name, message):
-    # Sends an iMessage to a group chat by its name via AppleScript
+    # Sends an iMessage to a group chat by its name via AppleScript with fuzzy matching
     try:
-        apple_script = f'''
+        # Step 1: Retrieve all group chat names
+        apple_script_list_chats = '''
+        tell application "Messages"
+            set chatNames to {}
+            repeat with c in chats
+                try
+                    if name of c is not missing value then
+                        set end of chatNames to name of c
+                    end if
+                end try
+            end repeat
+            return chatNames
+        end tell
+        '''
+        chat_process = subprocess.Popen(
+            ['osascript', '-'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = chat_process.communicate(apple_script_list_chats)
+
+        print("List chats AppleScript output:", stdout.strip())
+        if stderr.strip():
+            print("List chats AppleScript error:", stderr.strip())
+
+        if chat_process.returncode != 0 or not stdout.strip():
+            return False
+
+        # Parse the group chat names
+        group_chat_names = [name.strip() for name in stdout.strip().split(",") if name.strip()]
+        if not group_chat_names:
+            return False
+
+        # Step 2: Fuzzy match the provided group name
+        best_match = process.extractOne(group_name, group_chat_names, scorer=fuzz.token_sort_ratio)
+        if not best_match or best_match[1] < 60:  # Threshold for match confidence
+            print(f"No close match found for group '{group_name}'. Best match: {best_match}")
+            return False
+
+        matched_group_name = best_match[0]
+        print(f"Matched group '{group_name}' to '{matched_group_name}' with score {best_match[1]}")
+
+        # Step 3: Send message to the matched group
+        apple_script_send = f'''
         on run {{}}
-            set groupName to "{group_name}"
+            set groupName to "{matched_group_name}"
             set messageText to "{message}"
             tell application "Messages"
                 set targetService to 1st service whose service type = iMessage
@@ -591,7 +637,7 @@ def send_group_imessage(group_name, message):
                 repeat with c in chats
                     try
                         if name of c is not missing value then
-                            if name of c contains groupName then
+                            if name of c is groupName then
                                 send messageText to c
                                 set foundChat to true
                                 exit repeat
@@ -607,21 +653,28 @@ def send_group_imessage(group_name, message):
             end tell
         end run
         '''
-        process = subprocess.Popen(['osascript', '-'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, stderr = process.communicate(apple_script)
-        
+        send_process = subprocess.Popen(
+            ['osascript', '-'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = send_process.communicate(apple_script_send)
+
         print("send_group_imessage AppleScript output:", stdout.strip())
         if stderr.strip():
             print("send_group_imessage AppleScript error:", stderr.strip())
 
-        if process.returncode != 0 or "NOT_FOUND" in stdout:
+        if send_process.returncode != 0 or "NOT_FOUND" in stdout:
             return False
         return True
     except Exception as e:
         print("send_group_imessage error:", e)
         return False
 
-# -------------- Modified Function ----------------
+
+# -------------- Existing Functions ----------------
 
 def handle_text_message(command):
     # Expected command: "send text to [contact_name or group_name] that [message]"
@@ -656,8 +709,6 @@ def handle_text_message(command):
         print("handle_text_message error:", e)
         return "Sorry, there was an error sending the message."
 
-# -------------- New Function for Group Chats ----------------
-
 def handle_group_text_message(command):
     # Expected command: "send text to [group_name] group that [message]"
     try:
@@ -680,6 +731,6 @@ def handle_group_text_message(command):
     
     
 if __name__ == '__main__':
-    # command2 = "send text to OG Uncs group that hello ouncs"
+    # command2 = "send text to OG unks group that hello ouncs"
     # print(handle_group_text_message(command2))
     app.run(debug=True)
