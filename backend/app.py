@@ -111,8 +111,11 @@ def handle_command(command):
         return handle_chatgpt(command)
     elif "play" in command or "pause" in command or "stop" in command or "next" in command or "previous" in command or "skip" in command:
         return handle_music(command)
-    elif "send text to" in command and "that" in command:
-        return handle_text_message(command)
+    if "send text to" in command and "that" in command:
+        if "group" in command.lower():
+            return handle_group_text_message(command)
+        else:
+            return handle_text_message(command)
     else:
         return "Sorry, I don't understand that."
 
@@ -553,9 +556,8 @@ def get_contact_handles(contact_name):
         print("get_contact_handles error:", e)
         return []
 
-
 def send_imessage(handle, message):
-    # Sends an iMessage via AppleScript
+    # Sends an iMessage to an individual via AppleScript
     try:
         apple_script = f'''
         on run {{}}
@@ -576,32 +578,108 @@ def send_imessage(handle, message):
         print("send_imessage error:", e)
         return False
 
-# -------------- New function you needed ----------------
+def send_group_imessage(group_name, message):
+    # Sends an iMessage to a group chat by its name via AppleScript
+    try:
+        apple_script = f'''
+        on run {{}}
+            set groupName to "{group_name}"
+            set messageText to "{message}"
+            tell application "Messages"
+                set targetService to 1st service whose service type = iMessage
+                set foundChat to false
+                repeat with c in chats
+                    try
+                        if name of c is not missing value then
+                            if name of c contains groupName then
+                                send messageText to c
+                                set foundChat to true
+                                exit repeat
+                            end if
+                        end if
+                    end try
+                end repeat
+                if foundChat then
+                    return "SUCCESS"
+                else
+                    return "NOT_FOUND"
+                end if
+            end tell
+        end run
+        '''
+        process = subprocess.Popen(['osascript', '-'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = process.communicate(apple_script)
+        
+        print("send_group_imessage AppleScript output:", stdout.strip())
+        if stderr.strip():
+            print("send_group_imessage AppleScript error:", stderr.strip())
+
+        if process.returncode != 0 or "NOT_FOUND" in stdout:
+            return False
+        return True
+    except Exception as e:
+        print("send_group_imessage error:", e)
+        return False
+
+# -------------- Modified Function ----------------
 
 def handle_text_message(command):
-    # Expected command: "send text to [contact_name] that [message]"
+    # Expected command: "send text to [contact_name or group_name] that [message]"
     try:
         match = re.search(r"send text to (.+?) that (.+)", command, re.IGNORECASE)
         if not match:
-            return "Please say: send text to [contact name] that [message]."
+            return "Please say: send text to [contact or group name] that [message]."
 
-        contact_name = match.group(1).strip()
+        target_name = match.group(1).strip()
         message = match.group(2).strip()
 
-        handles = get_contact_handles(contact_name)
-        if not handles:
-            return f"Couldn't find contact '{contact_name}'."
-
-        success = send_imessage(handles[0], message)
-        if success:
-            return f"Message sent to {contact_name}."
+        # Check if the command includes "group" to handle group chats
+        if "group" in command.lower():
+            success = send_group_imessage(target_name, message)
+            if success:
+                return f"Message sent to group '{target_name}'."
+            else:
+                return f"Couldn't find group chat '{target_name}'."
         else:
-            return "Failed to send the message."
+            # Handle individual contact
+            handles = get_contact_handles(target_name)
+            if not handles:
+                return f"Couldn't find contact '{target_name}'."
+
+            success = send_imessage(handles[0], message)
+            if success:
+                return f"Message sent to {target_name}."
+            else:
+                return "Failed to send the message."
 
     except Exception as e:
         print("handle_text_message error:", e)
         return "Sorry, there was an error sending the message."
+
+# -------------- New Function for Group Chats ----------------
+
+def handle_group_text_message(command):
+    # Expected command: "send text to [group_name] group that [message]"
+    try:
+        match = re.search(r"send text to (.+?) group that (.+)", command, re.IGNORECASE)
+        if not match:
+            return "Please say: send text to [group name] group that [message]."
+
+        group_name = match.group(1).strip()
+        message = match.group(2).strip()
+
+        success = send_group_imessage(group_name, message)
+        if success:
+            return f"Message sent to group '{group_name}'."
+        else:
+            return f"Couldn't find group chat '{group_name}'."
+
+    except Exception as e:
+        print("handle_group_text_message error:", e)
+        return "Sorry, there was an error sending the group message."
     
     
 if __name__ == '__main__':
+    # command2 = "send text to OG Uncs group that hello ouncs"
+    # print(handle_group_text_message(command2))
     app.run(debug=True)
