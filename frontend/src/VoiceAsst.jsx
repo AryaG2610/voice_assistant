@@ -12,13 +12,13 @@ export default function VoiceAssistant() {
     const saved = localStorage.getItem("voiceEnabled");
     if (saved !== null) {
       setVoiceEnabled(saved === "true");
-      fetch("http://127.0.0.1:5000/toggle-voice", {
+      fetch("http://localhost:5001/toggle-voice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: saved === "true" }),
       });
     } else {
-      fetch("http://127.0.0.1:5000/get-voice-status")
+      fetch("http://localhost:5001/get-voice-status")
         .then(res => res.json())
         .then(data => {
           setVoiceEnabled(data.voice_enabled);
@@ -34,7 +34,7 @@ export default function VoiceAssistant() {
 
   const checkNovaResponse = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:5000/get-latest-response");
+      const res = await fetch("http://localhost:5001/get-latest-response");
       const data = await res.json();
       if (data && data.command) {
         setCommand(data.command);
@@ -51,7 +51,7 @@ export default function VoiceAssistant() {
     setCommand("");
     setResponse("");
     try {
-      const res = await fetch("http://127.0.0.1:5000/listen");
+      const res = await fetch("http://localhost:5001/listen");
       const data = await res.json();
       setCommand(data.command || "No command recognized");
       setResponse(data.response || "No response");
@@ -68,7 +68,7 @@ export default function VoiceAssistant() {
     setVoiceEnabled(newState);
     localStorage.setItem("voiceEnabled", String(newState));
     try {
-      await fetch("http://127.0.0.1:5000/toggle-voice", {
+      await fetch("http://localhost:5001/toggle-voice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: newState }),

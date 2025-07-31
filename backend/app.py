@@ -23,7 +23,8 @@ OPENWEATHER_API_KEY = "API_KEY_HERE"
 # openai.api_key = OPENAI_API_KEY
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
+
 
 recognizer = sr.Recognizer()
 engine = pyttsx3.init()
@@ -765,4 +766,4 @@ if __name__ == '__main__':
     # command2 = "send text to OG unks group that hello ouncs"
     # print(handle_group_text_message(command2))
     start_wake_word_thread()
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

@@ -7,9 +7,9 @@ import queue
 import time
 import os
 
-ACCESS_KEY = "KEY HERE"
+ACCESS_KEY = "C2bDVjHwdCb8ndjt2+/0Xdhdax6au8jG/Pdhh0wBWAsR6mdiN+idEQ=="
 KEYWORD_PATH = os.path.join(os.path.dirname(__file__), "Hey-Nova_en_mac_v3_0_0.ppn")
-LISTEN_ENDPOINT = "http://127.0.0.1:5000/listenNova"
+LISTEN_ENDPOINT = "http://localhost:5001/listenNova"
 COOLDOWN_SECONDS = 5
 
 q = queue.Queue()
